@@ -24,23 +24,66 @@ Migrate(app, db)
 
 # Models
 class Song(db.Model):
-    id = db.column(db.Integer, priary_key=True)
-    title = db.column (db.String(255), nullable=False)
-    artist = db.column (db.String(255), nullable=False)
-    album = db.column (db.String(255))
-    release_date = db.column (db.String(255))
-    genre = db.column(db.String(255))
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    artist = db.Column(db.String(255), nullable=False)
+    album = db.Column(db.String(255))
+    release_date = db.Column(db.Date)
+    genre = db.Column(db.String(255))
     
     def __repr__(self):
         return f"{self.title} {self.artist} {self.album} {self.release_date} {self.genre}"
 
 
+
 # Schemas
+class SongSchema(ma.Schema):
+    class Meta:
+        fields = ("id", "title", "artist", "album", "release_date", "genre")
+
+
+song_schema = SongSchema()
+songs_schema = SongSchema(many=True)
 
 
 
 # Resources
+class SongListResource(Resource):
+    def get(self):
+        all_songs = Song.query.all()
+        return songs_schema.dump(all_songs)
+    
+    def post(self):
+        print(request)
+        new_song = Song(
+            title=request.json["title"],
+            artist=request.json["artist"],
+            album=request.json["album"],
+            release_date=request.json["release_date"],
+            genre=request.json["genre"]
+        )
+        db.session.add(new_song)
+        db.session.commit()
+        return song_schema.dump(new_song), 201
+        
+class SongResource(Resource):
+    def get(self, song_id):
+        song_from_db = Song.query.get_or_404(song_id)
+        return song_schema.dump(song_from_db)
+    
+    def delete(self, song_id):
+        song_from_db = Song.query.get_or_404(song_id)
+        db.session.delete(song_from_db)
+        db.session.commit()
+        return "", 204
+    
 
+    def put(self, song_id):
+        song_from_db = Song.query.get_or_404(song_id)
 
-
+        if "title" in request.json:
+            song_from_db.title = request.json["title"]
+        
 # Routes
+api.add_resource(SongListResource, "/api/songs")
+api.add_resource(SongResource, "/api/songs/<int:song_id>")
