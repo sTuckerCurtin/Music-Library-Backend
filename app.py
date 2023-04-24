@@ -23,7 +23,16 @@ CORS(app)
 Migrate(app, db)
 
 # Models
-
+class Song(db.Model):
+    id = db.column(db.Integer, priary_key=True)
+    title = db.column (db.String(255), nullable=False)
+    artist = db.column (db.String(255), nullable=False)
+    album = db.column (db.String(255))
+    release_date = db.column (db.String(255))
+    genre = db.column(db.String(255))
+    
+    def __repr__(self):
+        return f"{self.title} {self.artist} {self.album} {self.release_date} {self.genre}"
 
 
 # Schemas
