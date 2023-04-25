@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
+from marshmallow import post_load, fields, ValidationError
 from dotenv import load_dotenv
 from os import environ
 
@@ -38,8 +39,20 @@ class Song(db.Model):
 
 # Schemas
 class SongSchema(ma.Schema):
+    id = fields.Integer(primary_key=True)
+    title = fields.String(required=True)
+    artist = fields.String(required=True)
+    album = fields.String()
+    release_date = fields.Date()
+    genre = fields.String(required=True)
+
+
     class Meta:
         fields = ("id", "title", "artist", "album", "release_date", "genre")
+
+    @post_load
+    def create_song(self, data, **Kwargs):
+        return Song(**data)
 
 
 song_schema = SongSchema()
@@ -51,20 +64,20 @@ songs_schema = SongSchema(many=True)
 class SongListResource(Resource):
     def get(self):
         all_songs = Song.query.all()
-        return songs_schema.dump(all_songs)
+        return songs_schema.dump(all_songs), 201
     
     def post(self):
-        print(request)
-        new_song = Song(
-            title=request.json["title"],
-            artist=request.json["artist"],
-            album=request.json["album"],
-            release_date=request.json["release_date"],
-            genre=request.json["genre"]
-        )
-        db.session.add(new_song)
-        db.session.commit()
-        return song_schema.dump(new_song), 201
+        form_data = request.get_json()
+        try:
+            new_song = song_schema.load(form_data)
+            db.session.add(new_song)
+            db.session.commit()
+            return song_schema.dump(new_song), 201
+        except ValidationError as err:
+            return err.messages, 400
+
+            
+        
         
 class SongResource(Resource):
     def get(self, song_id):
@@ -83,7 +96,17 @@ class SongResource(Resource):
 
         if "title" in request.json:
             song_from_db.title = request.json["title"]
+        if "artist" in request.json:
+            song_from_db.artist = request.json["artist"]
+        if "album" in request.json:
+            song_from_db.album = request.json["album"]
+        if "release_date" in request.json:
+            song_from_db.release_date = request.json["release_date"]
+        if "genre" in request.json:
+            song_from_db.title = request.json["genre"]
         
+        db.session.commit()
+        return song_schema.dump(song_from_db)
 # Routes
 api.add_resource(SongListResource, "/api/songs")
 api.add_resource(SongResource, "/api/songs/<int:song_id>")
